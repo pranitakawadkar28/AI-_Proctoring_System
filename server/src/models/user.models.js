@@ -23,8 +23,19 @@ const userSchema = new mongoose.Schema(
       enum: ["student", "admin", "teacher"],
       default: "student",
     },
+    failedLoginAttempts: { 
+      type: Number, 
+      default: 0 
+    },
+    lockUntil: { 
+      type: Date 
+    },
   },
   { timestamps: true },
 );
+
+userSchema.methods.isLocked = function () {
+  return this.lockUntil && this.lockUntil > Date.now();
+};
 
 export const userModel = mongoose.model("User", userSchema);

@@ -27,6 +27,9 @@ export const registerUser = async ({ username, email, password, role }) => {
   return safeUser;
 };
 
+const MAX_ATTEMPTS = 5;
+const LOCK_TIME = 15 * 60 * 1000;
+
 export const loginUser = async ({ email, password }) => {
 
   const user = await userModel
@@ -35,9 +38,26 @@ export const loginUser = async ({ email, password }) => {
 
   if (!user) throw new Error("Invalid credentials");
 
+    if (user.isLocked()) throw new Error("ACCOUNT_LOCKED");
+
+
   const isMatched = await comparePassword(password, user.password);
 
-  if (!isMatched) throw new Error("Invalid credentials");
+  if (!isMatched) {
+    user.failedLoginAttempts += 1;
+
+    if (user.failedLoginAttempts >= MAX_ATTEMPTS) {
+      user.lockUntil = Date.now() + LOCK_TIME;
+    }
+
+    await user.save();
+    throw new Error("INVALID_CREDENTIALS");
+  }
+
+  // Reset on success
+  user.failedLoginAttempts = 0;
+  user.lockUntil = undefined;
+  await user.save();
 
   const safeUser = user.toObject();
   delete safeUser.password;
@@ -49,3 +69,4 @@ export const loginUser = async ({ email, password }) => {
 
   return { user: safeUser, token };
 };
+

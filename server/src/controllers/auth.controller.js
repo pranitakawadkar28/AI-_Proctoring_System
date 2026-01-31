@@ -14,9 +14,7 @@ export const registerController = async (req, res) => {
       message: "User registered successfully",
       user,
     });
-
   } catch (error) {
-
     // Zod validation error
     if (error instanceof ZodError) {
       return res.status(400).json({
@@ -61,14 +59,18 @@ export const loginController = async (req, res) => {
       message: "Login successful",
       user,
     });
-
   } catch (error) {
-
     if (error instanceof ZodError) {
       return res.status(400).json({
         success: false,
         message: "Validation failed",
         errors: error.flatten().fieldErrors,
+      });
+    }
+    if (error.message === "ACCOUNT_LOCKED") {
+      return res.status(423).json({
+        success: false,
+        message: "Account locked. Try again later",
       });
     }
 
