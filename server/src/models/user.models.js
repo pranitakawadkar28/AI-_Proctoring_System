@@ -30,12 +30,24 @@ const userSchema = new mongoose.Schema(
     lockUntil: { 
       type: Date 
     },
+    lastFailedLogin: { 
+      type: Date 
+    },
   },
   { timestamps: true },
 );
 
 userSchema.methods.isLocked = function () {
   return this.lockUntil && this.lockUntil > Date.now();
+};
+
+userSchema.methods.getBackoffDelay = function () {
+  if (!this.lastFailedLogin) return 0;
+
+  // Exponential backoff: 2^(failedAttempts-1) seconds
+  const delay = Math.pow(2, this.failedLoginAttempts - 1);
+  const passed = (Date.now() - this.lastFailedLogin.getTime()) / 1000;
+  return Math.max(0, delay - passed);
 };
 
 export const userModel = mongoose.model("User", userSchema);

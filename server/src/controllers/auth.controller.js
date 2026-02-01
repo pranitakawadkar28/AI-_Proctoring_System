@@ -60,6 +60,9 @@ export const loginController = async (req, res) => {
       user,
     });
   } catch (error) {
+
+    console.error("login error", error);
+
     if (error instanceof ZodError) {
       return res.status(400).json({
         success: false,
@@ -74,14 +77,17 @@ export const loginController = async (req, res) => {
       });
     }
 
+    if (error.message.startsWith("BACKOFF_")) {
+      const seconds = error.message.split("_")[1];
+      return res.status(429).json({ success: false, message: `Wait ${seconds} seconds before next login attempt` });
+    }
+
     if (error.message === "Invalid credentials") {
       return res.status(401).json({
         success: false,
         message: error.message,
       });
     }
-
-    console.error(error);
 
     return res.status(500).json({
       success: false,
