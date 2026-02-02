@@ -8,12 +8,15 @@ export const registerController = async (req, res) => {
     const validatedData = registerSchema.parse(req.body);
 
     const user = await registerUser(validatedData);
+    
+    console.log("user registered successfully  ---->", user);
 
     return res.status(201).json({
       success: true,
       message: "User registered successfully",
       user,
     });
+
   } catch (error) {
     // Zod validation error
     if (error instanceof ZodError) {
@@ -31,8 +34,6 @@ export const registerController = async (req, res) => {
         message: error.message,
       });
     }
-
-    console.error(error);
 
     return res.status(500).json({
       success: false,
@@ -54,6 +55,8 @@ export const loginController = async (req, res) => {
       maxAge: 24 * 60 * 60 * 1000,
     });
 
+    console.log("User logged in:", user.email);
+
     return res.status(200).json({
       success: true,
       message: "Login successful",
@@ -61,7 +64,7 @@ export const loginController = async (req, res) => {
     });
   } catch (error) {
 
-    console.error("login error", error);
+    console.error("LOGIN ERROR:", error.message);
 
     if (error instanceof ZodError) {
       return res.status(400).json({
@@ -70,7 +73,9 @@ export const loginController = async (req, res) => {
         errors: error.flatten().fieldErrors,
       });
     }
+    
     if (error.message === "ACCOUNT_LOCKED") {
+      console.log("ACCOUNT LOCKED — sending email...", error.message);
       return res.status(423).json({
         success: false,
         message: "Account locked. Try again later",
@@ -78,16 +83,20 @@ export const loginController = async (req, res) => {
     }
 
     if (error.message.startsWith("BACKOFF_")) {
+      console.log("BACKOFF TRIGGERED:", error.message);
       const seconds = error.message.split("_")[1];
       return res.status(429).json({ success: false, message: `Wait ${seconds} seconds before next login attempt` });
     }
 
-    if (error.message === "Invalid credentials") {
+    if (error.message === "INVALID_CREDENTIALS") {
+       console.log("INVALID LOGIN ATTEMPT");
       return res.status(401).json({
         success: false,
         message: error.message,
       });
     }
+
+    console.error("UNKNOWN LOGIN ERROR:", error);
 
     return res.status(500).json({
       success: false,

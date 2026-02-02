@@ -34,14 +34,14 @@ const LOCK_TIME = 15 * 60 * 1000;
 export const loginUser = async ({ email, password }) => {
   const user = await userModel.findOne({ email }).select("+password");
 
-  if (!user) throw new Error("Invalid credentials");
-
-  // Account lock check
-  if (user.isLocked()) throw new Error("ACCOUNT_LOCKED");
+  if (!user) throw new Error("INVALID_CREDENTIALS");
 
   // Exponential backoff
   const delay = user.getBackoffDelay();
   if (delay > 0) throw new Error(`BACKOFF_${Math.ceil(delay)}`);
+
+    // Account lock check
+  if (user.isLocked()) throw new Error("ACCOUNT_LOCKED");
 
   const isMatched = await comparePassword(password, user.password);
 
@@ -54,16 +54,20 @@ export const loginUser = async ({ email, password }) => {
       await user.save();
 
       // send email
-      await sendEmail(
-        user.email,
-        "Account Locked",
-        `Your account has been locked due to multiple failed login attempts. It will unlock after 15 minutes.`,
-      );
+      try {
+        await sendEmail({
+          to: user.email,
+          subject: "Account Locked",
+          html: `Your account has been locked due to multiple failed login attempts. It will unlock after 15 minutes.`,
+        });
+      } catch (err) {
+        console.log("Email failed but account locked anyway");
+      }
 
       throw new Error("ACCOUNT_LOCKED");
     }
 
-    console.log(user);
+    console.log("Failed login:", user.email);
 
     await user.save();
     throw new Error("INVALID_CREDENTIALS");
